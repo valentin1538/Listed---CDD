@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+    <title>Listed - Login</title>
+    <!-- Favicon-->
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico" />
+    <!-- Bootstrap icons-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet" />
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="../css/styles.css" rel="stylesheet" />
+</head>
+<body>
+    <!-- Page de connexion -->
+    <div class="container" id="login-container">
+        <div class="row justify-content-center">
+            <div class="col-lg-6">
+                <h1 class="display-5 fw-bolder mb-4 no-print">Connexion Administrateur</h1>
+                <form id="login-form">
+                    <div class="form-group">
+                        <input type="email" id="admin-email" class="form-control mb-3" placeholder="Email" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="admin-password" class="form-control mb-3" placeholder="Mot de passe" required>
+                    </div>
+                    <div class="text-center">
+                        <button type="submit" id="btn-submit" class="btn btn-danger btn-lg px-5">Se connecter</button>
+                    </div>
+                    <p id="login-message" class="text-center mt-3 text-danger"></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Importation des scripts Firebase -->
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+
+        // Votre configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7eJaaCgeKvKPxqTF_iEbZhq4omLsHQCQ",
+            authDomain: "cdd-pj-1407e.firebaseapp.com",
+            projectId: "cdd-pj-1407e",
+            storageBucket: "cdd-pj-1407e.appspot.com",
+            messagingSenderId: "695193010946",
+            appId: "1:695193010946:web:7292c5c1718f4d7c18781b",
+            measurementId: "G-SC1WM0N7KK"
+        };
+
+        // Initialisation de Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const userEmail = document.getElementById('admin-email');
+        const userPassword = document.getElementById('admin-password');
+        const signInButton = document.getElementById('btn-submit');
+
+        const userSignIn = async(event) => {
+            event.preventDefault();  // Empêche le formulaire de soumettre de manière classique
+
+            const signInEmail = userEmail.value;
+            const signInPassword = userPassword.value;
+            signInWithEmailAndPassword(auth, signInEmail, signInPassword)
+            .then((result) => {
+                const user = result.user;
+                console.log(user.email);
+                window.location.href = 'admin.html';  // Redirection après connexion réussie
+            })
+            .catch((error) => {
+                const errorCode = error.code;
+                const errorMessage = error.message;
+                console.error(`Erreur : ${errorCode} - ${errorMessage}`);
+                document.getElementById('login-message').innerText = `Erreur : ${errorMessage}`;
+            });
+        }
+
+        const checkAuthState = async() => {
+            onAuthStateChanged(auth, user => {
+                if(user) {
+                    console.log('connécté');
+                    window.location.href = 'admin.html';  // Redirection si l'utilisateur est déjà connecté
+                } else {
+                    console.log("pas connécté");
+                }
+            });
+        }
+        checkAuthState();
+
+        signInButton.addEventListener('click', userSignIn);
+    </script>
+
+    <!-- Bootstrap core JS-->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Core theme JS-->
+    <script src="../js/scripts.js"></script>
+</body>
+</html>

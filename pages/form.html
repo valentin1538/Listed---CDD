@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+    <title>Listed - PJ Prêts</title>
+    <!-- Favicon-->
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico" />
+    <!-- Bootstrap icons-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet" />
+    <!-- Bootstrap CSS -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="../css/styles.css" rel="stylesheet" />
+    <style>
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .document-list {
+            text-align: left;
+            margin-top: 20px;
+        }
+        .document-list label {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        .document-list label input {
+            margin-right: 10px; /* Espace entre la case à cocher et le texte */
+        }
+    </style>
+</head>
+<body>
+    <!-- Formulaire -->
+     
+    <div class="container" id="formContent">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <form id="categoryForm">
+                    <div class="text-center my-4">
+                        <h1 class="display-5 fw-bolder mb-4">Liste des pièces justificatives</h1>
+                        <h2 class="mb-4 no-print">Sélectionnez des catégories</h2>
+                        <div class="form-group no-print">
+                            <select class="form-control mb-3" id="categorySelect">
+                                <option disabled selected="selected">Choisissez une option</option>
+                                <!-- Les options seront ajoutées dynamiquement -->
+                            </select>
+                        </div>
+                        <div id="additionalSelectsContainer" class="no-print "></div>
+                        <div id="resetButtonContainer" class="no-print"></div> <!-- Nouvelle div pour le bouton de réinitialisation -->
+                        <div id="documentLists" class="document-list"></div>
+                        <div class="text-center mt-4 no-print">
+                            <button disabled type="button" class="btn btn-danger btn-lg mb-3 px-5" id="pdfButton">Exporter en PDF</button>
+                            <button disabled type="button" class="btn btn-danger btn-lg mb-3 px-5 ml-3" id="emailButton">Envoyer par Email</button>
+                            <button disabled type="button" class="btn btn-danger btn-lg mb-3 px-5 ml-3" id="wordButton">Exporter en Word</button>
+                            <button type="button" class="btn btn-primary btn-lg mb-3 px-5 ml-3" onclick="window.location.href='login.html'">Modification PJ</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap core JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/da115ac10d.js" crossorigin="anonymous"></script>
+
+    <!-- Core theme JS -->
+    <script src="../js/scripts.js"></script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+        import { getFirestore, collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    
+        // Votre configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7eJaaCgeKvKPxqTF_iEbZhq4omLsHQCQ",
+            authDomain: "cdd-pj-1407e.firebaseapp.com",
+            projectId: "cdd-pj-1407e",
+            storageBucket: "cdd-pj-1407e.appspot.com",
+            messagingSenderId: "695193010946",
+            appId: "1:695193010946:web:7292c5c1718f4d7c18781b",
+            measurementId: "G-SC1WM0N7KK"
+        };
+    
+        // Initialisation de Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+    
+        const categorySelect = document.getElementById('categorySelect');
+        const additionalSelectsContainer = document.getElementById('additionalSelectsContainer');
+        const documentLists = document.getElementById('documentLists');
+        const emailButton = document.getElementById('emailButton');
+        const wordButton = document.getElementById('wordButton');
+    
+        let selectedCategories = new Set();
+    
+        async function initializeCategorySelect() {
+            try {
+                const snapshot = await getDocs(collection(db, 'Documents'));
+                let categories = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    title: doc.data().Titre
+                }));
+
+                // Trier les catégories pour que "justificatif" soit en premier
+                categories.sort((a, b) => {
+                    if (a.id === 'Justificatif') return -1; // Met "justificatif" en premier
+                    if (b.id === 'Justificatif') return 1;
+                    return a.title.localeCompare(b.title); // Trier les autres catégories par titre
+                });
+
+                let optionsHtml = `<option disabled selected="selected">Choisissez une option</option>`;
+                categories.forEach(cat => {
+                    optionsHtml += `<option value='${cat.id}'>${cat.title}</option>`;
+                });
+
+                categorySelect.innerHTML = optionsHtml;
+            } catch (error) {
+                console.error('Error initializing category select:', error);
+            }
+        }
+    
+        categorySelect.addEventListener("change", async function () {
+            const selectedCategory = categorySelect.value;
+            if (selectedCategory && !selectedCategories.has(selectedCategory)) {
+                selectedCategories.add(selectedCategory);
+                categorySelect.classList.add('d-none');
+                await renderDocumentList(selectedCategory);
+                await updateAdditionalSelects();
+                enableButtons();
+            }
+        });
+
+        function enableButtons() {
+            document.getElementById("pdfButton").removeAttribute("disabled");
+            document.getElementById("emailButton").removeAttribute("disabled");
+            document.getElementById("wordButton").removeAttribute("disabled");
+        }
+    
+        async function renderDocumentList(category) {
+            try {
+                const docRef = doc(db, 'Documents', category);
+                const docSnap = await getDoc(docRef);
+    
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const title = data.Titre;
+                    const documents = data.PJ;
+    
+                    let html = `<h2 class='text-white mt-5'>${title}</h2>`;
+                    html += "<form id='documentForm'>";
+                    html += "<ul class='list-unstyled' style='margin-left: 20px;'>";
+    
+                    documents.forEach(doc => {
+                        if (doc.startsWith("✓")) {
+                            doc = doc.substring(1).trim(); // Supprime le symbole ✓ s'il existe
+                        }
+                        html += `<li><label class="text-white"><input type='checkbox' id='${doc}' name='document' value='${doc}'> ${doc}</label></li>`;
+                    });
+    
+                    html += "</ul>";
+                    html += "</form>";
+                    documentLists.innerHTML += html; // Append instead of replace
+                } else {
+                    documentLists.innerHTML += "<p class='text-white'> Aucun document trouvé pour cette catégorie.</p>";
+                }
+    
+            } catch (error) {
+                console.error('Error rendering document list:', error);
+                documentLists.innerHTML += "<p class='text-white'> Erreur lors du chargement des documents.</p>";
+            }
+        }
+    
+        async function updateAdditionalSelects() {
+            try {
+                // Get all categories
+                const snapshot = await getDocs(collection(db, 'Documents'));
+                const allCategories = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    title: doc.data().Titre
+                }));
+
+                // Filter out already selected categories
+                const remainingCategories = allCategories.filter(cat => !selectedCategories.has(cat.id));
+
+                if (remainingCategories.length > 0) {
+                    const selectHtml = `
+                        <div class="form-group no-print">
+                            <select class="form-control mb-3 additional-select">
+                                <option disabled selected="selected">Choisissez une autre catégorie</option>
+                                ${remainingCategories.map(cat => `<option value='${cat.id}'>${cat.title}</option>`).join('')}
+                            </select>
+                        </div>
+                    `;
+
+                    additionalSelectsContainer.innerHTML = selectHtml;
+
+                    // Add event listener to the new select element
+                    additionalSelectsContainer.querySelector('.additional-select').addEventListener('change', function () {
+                        const selectedCategory = this.value;
+                        if (selectedCategory) {
+                            categorySelect.value = selectedCategory; // Set the value of the original select
+                            categorySelect.dispatchEvent(new Event('change')); // Trigger the change event
+                            this.remove(); // Remove the select after use
+                        }
+                    });
+
+                } else {
+                    additionalSelectsContainer.style.display = 'none';
+                }
+                // Show the reset button
+                showResetButton();
+            } catch (error) {
+                console.error('Error updating additional selects:', error);
+            }
+        }
+
+    
+        document.getElementById("pdfButton").addEventListener("click", function (event) {
+            generatePDF();
+        });
+    
+        function generatePDF() {
+            const exportButton = document.getElementById("pdfButton");
+    
+            // Cacher les lignes non cochées et les boutons avant l'impression
+            const uncheckedItems = document.querySelectorAll("#documentLists input[type='checkbox']:not(:checked)");
+            uncheckedItems.forEach(item => item.parentElement.classList.add("no-print"));
+            exportButton.classList.add("no-print");
+    
+            // Utiliser setTimeout pour s'assurer que les éléments sont cachés avant l'impression
+            setTimeout(() => {
+                window.print();
+    
+                // Réafficher les éléments après l'impression
+                uncheckedItems.forEach(item => item.parentElement.classList.remove("no-print"));
+                exportButton.classList.remove("no-print");
+            }, 100);
+        }
+
+        function showResetButton() {
+            resetButtonContainer.innerHTML = '<button type="button" class="btn btn-danger mt-3" id="resetButton"><i class="fa fa-refresh" aria-hidden="true"></i> Réinitialiser</button>';
+            document.getElementById('resetButton').addEventListener('click', resetForm);
+        }
+
+        function resetForm() {
+            localStorage.removeItem('checkedDocuments');
+                    
+            // Réinitialiser la sélection des catégories
+            selectedCategories.clear();
+            
+            // Réinitialiser l'affichage du sélecteur de catégorie
+            initializeCategorySelect();
+            
+            location.reload();
+        }
+    
+        function getDocumentContent() {
+            let content = "";
+            document.querySelectorAll("#documentLists h2, #documentLists input[type='checkbox']").forEach(el => {
+                if (el.tagName === "H2") {
+                    content += el.innerText + "\n\n";
+                } else if (el.type === "checkbox" && el.checked) {
+                    content += "- " + el.nextSibling.textContent.trim() + "\n";
+                }
+            });
+            return content;
+        }
+    
+        emailButton.addEventListener('click', function () {
+            const content = getDocumentContent();
+            const subject = "Liste des pièces justificatives";
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`;
+        });
+    
+        wordButton.addEventListener('click', function () {
+            const content = getDocumentContent();
+            const blob = new Blob([content], { type: "application/msword" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'liste_des_pieces_justificatives.doc';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+        });
+    
+        // Initialiser les options du sélecteur lors du chargement de la page
+        initializeCategorySelect();
+    </script>
+</body>
+</html>

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="" />
+    <title>Listed - Admin</title>
+    <!-- Favicon-->
+    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico" />
+    <!-- Bootstrap icons-->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.4.1/font/bootstrap-icons.css" rel="stylesheet" />
+    <!-- Core theme CSS (includes Bootstrap)-->
+    <link href="../css/styles.css" rel="stylesheet" />
+    <style>
+        .message-success {
+            display: none;
+            color: green;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Page Admin -->
+    <div class="container" id="admin-container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="text-center my-4">
+                    <h1 class="display-5 fw-bolder mb-4">Dashboard Administrateur</h1>
+
+                    <!-- Section pour afficher les documents -->
+                    <div id="document-section">
+                        <h2 class="mb-4">Liste des Documents</h2>
+                        <ul id="document-list" class="list-group mb-4"></ul>
+                    </div>
+
+                    <!-- Formulaire pour ajouter ou modifier un document -->
+                    <div class="mb-4">
+                        <h3 id="form-title">Ajouter une catégorie</h3>
+                        <form id="document-form">
+                            <div class="text-center mt-4">
+                                <label for="document-id" class="form-label">ID (mot clé)</label>
+                                <input type="text" id="document-id" class="form-control" required>
+                            </div>
+                            <div class="text-center mt-4">
+                                <label for="document-title" class="form-label">Titre</label>
+                                <input type="text" id="document-title" class="form-control" required>
+                            </div>
+                            <div class="text-center mt-4 mb-4">
+                                <label for="document-pj" class="form-label">Liste des PJ (séparés par ' / ')</label>
+                                <textarea id="document-pj" class="form-control" rows="5" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary" id="submit-button">Ajouter</button>
+                        </form>
+                        <div class="message-success" id="success-message"></div>
+                    </div>
+
+                    <!-- Bouton de déconnexion -->
+                    <button id="logout-button" class="btn btn-danger">Déconnexion</button>
+                    <button id="listes-button" class="btn btn-danger" onclick=" window.location.href = 'form.html';">Voir les listes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Importation des scripts Firebase -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js";
+        import { getFirestore, collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+
+        // Configuration Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7eJaaCgeKvKPxqTF_iEbZhq4omLsHQCQ",
+            authDomain: "cdd-pj-1407e.firebaseapp.com",
+            projectId: "cdd-pj-1407e",
+            storageBucket: "cdd-pj-1407e.appspot.com",
+            messagingSenderId: "695193010946",
+            appId: "1:695193010946:web:7292c5c1718f4d7c18781b",
+            measurementId: "G-SC1WM0N7KK"
+        };
+
+        // Initialisation Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Vérification de l'état de connexion
+        const checkAuthState = () => {
+            onAuthStateChanged(auth, user => {
+                if (!user) {
+                    // Redirection vers la page de connexion si l'utilisateur n'est pas connecté
+                    window.location.href = 'login.html';
+                } else {
+                    // Charger les données de Firestore si l'utilisateur est connecté
+                    loadDocumentData();
+                }
+            });
+        };
+
+        // Fonction pour charger les données des documents depuis Firestore
+        const loadDocumentData = async () => {
+            try {
+                const docRef = collection(db, 'Documents');
+                const docSnapshot = await getDocs(docRef);
+                const documents = docSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderDocumentList(documents);
+            } catch (error) {
+                console.error('Erreur lors du chargement des documents:', error);
+            }
+        };
+
+        const escapeString = (str) => {
+            return str.replace(/'/g, "\\'");
+        };
+
+        // Fonction pour afficher les documents
+        const renderDocumentList = (documents) => {
+            const documentList = document.getElementById('document-list');
+            documentList.innerHTML = '';
+
+            documents.forEach(doc => {
+                const escapedTitle = escapeString(doc.Titre);
+                const escapedPJ = escapeString(doc.PJ.join(' / '));
+
+                const li = document.createElement('li');
+                li.classList.add('list-group-item');
+                li.innerHTML = `
+                    <h1>${doc.id}</h1>
+                    <h5>${doc.Titre}</h5>
+                    <ul>${doc.PJ.map(item => `<li>${item}</li>`).join('')}</ul>
+                    <button class="btn btn-info" data-id="${doc.id}" onclick="prepareEditDocument('${doc.id}', '${escapedTitle}', '${escapedPJ}')">Modifier</button>
+                    <button class="btn btn-danger" data-id="${doc.id}" onclick="deleteDocument('${doc.id}')">Supprimer</button>
+                `;
+                documentList.appendChild(li);
+            });
+        };
+
+        // Fonction pour ajouter un document
+        const addDocument = async (id, Titre, pj) => {
+            try {
+                await setDoc(doc(db, 'Documents', id), {
+                    Titre,
+                    PJ: pj.split(' / ').map(doc => doc.trim())
+                });
+                loadDocumentData();
+                showSuccessMessage('Document ajouté avec succès');
+            } catch (error) {
+                console.error('Erreur lors de l\'ajout du document:', error);
+            }
+        };
+
+        // Fonction pour modifier un document
+        const editDocument = async (id, Titre, pj) => {
+            try {
+                const docRef = doc(db, 'Documents', id);
+                await updateDoc(docRef, {
+                    Titre,
+                    PJ: pj.split(' / ').map(doc => doc.trim())
+                });
+                loadDocumentData();
+                showSuccessMessage('Document modifié avec succès');
+            } catch (error) {
+                console.error('Erreur lors de la modification du document:', error);
+            }
+        };
+
+        // Préparer le formulaire pour la modification
+        window.prepareEditDocument = (id, Titre, pj) => {
+            const docIdField = document.getElementById('document-id');
+            docIdField.value = id;
+            docIdField.readOnly = true; // Rendre le champ ID en lecture seule lors de la modification
+
+            document.getElementById('document-title').value = Titre.replace(/\\'/g, "'");
+            document.getElementById('document-pj').value = pj.replace(/\\'/g, "'");
+            document.getElementById('form-title').innerText = 'Modifier la catégorie';
+            document.getElementById('submit-button').innerText = 'Modifier';
+
+            // Faire défiler jusqu'au formulaire
+            document.getElementById('document-form').scrollIntoView({ behavior: 'smooth' });
+        };
+
+        // Fonction pour supprimer un document
+        window.deleteDocument = async (id) => {
+            const confirmation = confirm("Êtes-vous sûr de vouloir supprimer ce document ?");
+            if (!confirmation) return;
+
+            try {
+                const docRef = doc(db, 'Documents', id);
+                await deleteDoc(docRef);
+                loadDocumentData();
+                showSuccessMessage('Document supprimé avec succès');
+            } catch (error) {
+                console.error('Erreur lors de la suppression du document:', error);
+            }
+        };
+
+        // Afficher un message de succès
+        const showSuccessMessage = (message) => {
+            const successMessage = document.getElementById('success-message');
+            successMessage.innerText = message;
+            successMessage.style.display = 'block';
+            setTimeout(() => {
+                successMessage.style.display = 'none';
+            }, 3000);
+        };
+
+        // Gestionnaire d'événement pour le formulaire
+        document.getElementById('document-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            const docIdField = document.getElementById('document-id');
+            const id = docIdField.value;
+            const Titre = document.getElementById('document-title').value;
+            const pj = document.getElementById('document-pj').value;
+
+            if (docIdField.readOnly) {
+                // Modifier le document existant
+                editDocument(id, Titre, pj);
+            } else {
+                // Ajouter un nouveau document
+                addDocument(id, Titre, pj);
+            }
+
+            // Réinitialiser le formulaire
+            docIdField.readOnly = false;
+            document.getElementById('document-form').reset();
+            document.getElementById('form-title').innerText = 'Ajouter un Document';
+            document.getElementById('submit-button').innerText = 'Ajouter';
+        });
+
+        // Fonction de déconnexion
+        const logout = async () => {
+            try {
+                await signOut(auth);
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Erreur lors de la déconnexion:', error);
+            }
+        };
+
+        // Gestionnaire d'événement pour le bouton de déconnexion
+        document.getElementById('logout-button').addEventListener('click', logout);
+
+        // Vérifiez l'état de connexion lorsque la page se charge
+        checkAuthState();
+    </script>
+
+    <!-- Bootstrap core JS-->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Core theme JS-->
+    <script src="../js/scripts.js"></script>
+</body>
+</html>
