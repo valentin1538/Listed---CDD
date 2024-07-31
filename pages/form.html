@@ -96,8 +96,14 @@
         const documentLists = document.getElementById('documentLists');
         const emailButton = document.getElementById('emailButton');
         const wordButton = document.getElementById('wordButton');
+        const pdfButton = document.getElementById('pdfButton');
     
         let selectedCategories = new Set();
+        const documentsMap = {
+            "Le bilan patrimonial daté et signé de moins de 6 mois des associés (selon modèle joint)": "Modèle bilan patrimonial",
+            "Le prévisionnel d’activité sur 3 années (selon modèle joint)": "Modèle prévisionnel sur 3 ans",
+            "Le plan de financement (selon modèle joint)": "Modèle plan de financement"
+        };
     
         async function initializeCategorySelect() {
             try {
@@ -292,7 +298,34 @@
                 window.URL.revokeObjectURL(url);
             }, 0);
         });
-    
+
+        function downloadDocuments() {
+            const checkboxes = document.querySelectorAll("#documentLists input[type='checkbox']:checked");
+            checkboxes.forEach(checkbox => {
+                const labelText = checkbox.nextSibling.textContent.trim();
+                if (documentsMap[labelText]) {
+                    const link = document.createElement("a");
+                    link.href = `../docs/${documentsMap[labelText]}.xlsx`;
+                    link.download = documentsMap[labelText];
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            });
+        }
+
+        pdfButton.addEventListener("click", function () {
+            downloadDocuments();
+        });
+
+        emailButton.addEventListener("click", function () {
+            downloadDocuments();
+        });
+
+        wordButton.addEventListener("click", function () {
+            downloadDocuments();
+        });
+
         // Initialiser les options du sélecteur lors du chargement de la page
         initializeCategorySelect();
     </script>
