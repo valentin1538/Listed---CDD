@@ -87,14 +87,24 @@
         const wordButton = document.getElementById('wordButton');
         const pdfButton = document.getElementById('pdfButton');
         const resetButtonContainer = document.getElementById('resetButtonContainer');
+        const resetButton = document.getElementById('resetButton');
     
         let selectedCategories = new Set();
         const documentsMap = {
-            "Le bilan patrimonial daté et signé de moins de 6 mois des associés (selon modèle joint)": "Modèle bilan patrimonial Associés",
-            "Le bilan patrimonial daté et signé de moins de 6 mois de la caution (selon modèle joint)": "Modèle bilan patrimonial Caution",
-            "Le prévisionnel d’activité sur 3 années (selon modèle joint)": "Modèle prévisionnel sur 3 ans",
-            "Le plan de financement (selon modèle joint)": "Modèle plan de financement"
+            "bilan patrimonial": "Modèle bilan patrimonial",
+            "prévisionnel d’activité": "Modèle prévisionnel sur 3 ans",
+            "plan de financement": "Modèle plan de financement",
+            // Ajoutez d'autres correspondances ici
         };
+
+        function getDocumentFileName(text) {
+            for (const key in documentsMap) {
+                if (text.toLowerCase().includes(key)) {
+                    return documentsMap[key];
+                }
+            }
+            return null; // Aucun fichier trouvé pour ce texte
+        }
     
         async function initializeCategorySelect() {
             try {
@@ -332,10 +342,11 @@
             const checkboxes = document.querySelectorAll("#documentLists input[type='checkbox']:checked");
             checkboxes.forEach(checkbox => {
                 const labelText = checkbox.nextSibling.textContent.trim();
-                if (documentsMap[labelText]) {
+                const fileName = getDocumentFileName(labelText);
+                if (fileName) {
                     const link = document.createElement("a");
-                    link.href = `../docs/${documentsMap[labelText]}.xlsx`;
-                    link.download = documentsMap[labelText];
+                    link.href = `../docs/${fileName}.xlsx`;
+                    link.download = fileName;
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
@@ -345,6 +356,10 @@
 
         pdfButton.addEventListener("click", function () {
             downloadDocuments();
+        });
+
+        resetButton.addEventListener("click", function () {
+            resetForm();
         });
 
         emailButton.addEventListener("click", function () {
