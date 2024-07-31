@@ -14,24 +14,6 @@
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet" />
     <!-- Core theme CSS (includes Bootstrap)-->
     <link href="../css/styles.css" rel="stylesheet" />
-    <style>
-        .form-group {
-            margin-bottom: 20px;
-        }
-        .document-list {
-            text-align: left;
-            margin-top: 20px;
-        }
-        .document-list label {
-            display: flex;
-            align-items: center;
-            margin-bottom: 8px;
-            cursor: pointer;
-        }
-        .document-list label input {
-            margin-right: 10px; /* Espace entre la case à cocher et le texte */
-        }
-    </style>
 </head>
 <body>
     <!-- Formulaire -->
@@ -49,8 +31,15 @@
                                 <!-- Les options seront ajoutées dynamiquement -->
                             </select>
                         </div>
-                        <div id="additionalSelectsContainer" class="no-print "></div>
-                        <div id="resetButtonContainer" class="no-print"></div> <!-- Nouvelle div pour le bouton de réinitialisation -->
+                        <div id="additionalSelectsContainer" class="no-print"></div>
+                        <div id="resetButtonContainer" class="no-print">
+                            <div class="button-container">
+                                <button type="button" class="btn btn-info btn-sm" id="checkAllButton"><i class="fa-solid fa-check-double"></i></button> <!-- Bouton pour cocher toutes les cases -->
+                                <div class="reset-button-container">
+                                    <button type="button" class="btn btn-danger btn-sm" id="resetButton"><i class="fa fa-refresh" aria-hidden="true"></i> Réinitialiser</button>
+                                </div>
+                            </div>
+                        </div>
                         <div id="documentLists" class="document-list"></div>
                         <div class="text-center mt-4 no-print">
                             <button disabled type="button" class="btn btn-danger btn-lg mb-3 px-5" id="pdfButton">Exporter en PDF</button>
@@ -97,10 +86,12 @@
         const emailButton = document.getElementById('emailButton');
         const wordButton = document.getElementById('wordButton');
         const pdfButton = document.getElementById('pdfButton');
+        const resetButtonContainer = document.getElementById('resetButtonContainer');
     
         let selectedCategories = new Set();
         const documentsMap = {
-            "Le bilan patrimonial daté et signé de moins de 6 mois des associés (selon modèle joint)": "Modèle bilan patrimonial",
+            "Le bilan patrimonial daté et signé de moins de 6 mois des associés (selon modèle joint)": "Modèle bilan patrimonial Associés",
+            "Le bilan patrimonial daté et signé de moins de 6 mois de la caution (selon modèle joint)": "Modèle bilan patrimonial Caution",
             "Le prévisionnel d’activité sur 3 années (selon modèle joint)": "Modèle prévisionnel sur 3 ans",
             "Le plan de financement (selon modèle joint)": "Modèle plan de financement"
         };
@@ -148,34 +139,74 @@
             document.getElementById("wordButton").removeAttribute("disabled");
         }
     
+        // Fonction pour afficher ou masquer le bouton de cocher toutes les cases
+        function toggleCheckAllButton() {
+            const checkboxes = document.querySelectorAll("#documentLists input[type='checkbox']");
+            const checkAllButton = document.getElementById("checkAllButton");
+            
+            // Afficher le bouton seulement si des cases à cocher sont présentes
+            if (checkboxes.length > 0) {
+                checkAllButton.style.display = 'inline-block';
+                resetButtonContainer.style.display = 'block'; // Afficher la div contenant les boutons
+            } else {
+                checkAllButton.style.display = 'none';
+                resetButtonContainer.style.display = 'none'; // Cacher la div contenant les boutons
+            }
+        }
+
+        document.getElementById("checkAllButton").addEventListener("click", function () {
+            const checkboxes = document.querySelectorAll("#documentLists input[type='checkbox']");
+            const allChecked = Array.from(checkboxes).every(checkbox => checkbox.checked);
+            const checkAllButton = document.getElementById("checkAllButton");
+            const icon = checkAllButton.querySelector("i");
+
+            // Cocher ou décocher toutes les cases en fonction de leur état actuel
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = !allChecked;
+            });
+
+            // Mettre à jour l'icône du bouton en fonction de l'état des cases
+            if (allChecked) {
+                icon.classList.remove("fa-xmark");
+                icon.classList.add("fa-check-double");
+            } else {
+                icon.classList.remove("fa-check-double");
+                icon.classList.add("fa-xmark");
+            }
+        });
+
+        // Appeler cette fonction lorsque des documents sont rendus
         async function renderDocumentList(category) {
             try {
                 const docRef = doc(db, 'Documents', category);
                 const docSnap = await getDoc(docRef);
-    
+
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     const title = data.Titre;
                     const documents = data.PJ;
-    
+
                     let html = `<h2 class='text-white mt-5'>${title}</h2>`;
                     html += "<form id='documentForm'>";
                     html += "<ul class='list-unstyled' style='margin-left: 20px;'>";
-    
+
                     documents.forEach(doc => {
                         if (doc.startsWith("✓")) {
                             doc = doc.substring(1).trim(); // Supprime le symbole ✓ s'il existe
                         }
                         html += `<li><label class="text-white"><input type='checkbox' id='${doc}' name='document' value='${doc}'> ${doc}</label></li>`;
                     });
-    
+
                     html += "</ul>";
                     html += "</form>";
                     documentLists.innerHTML += html; // Append instead of replace
+
+                    // Appeler la fonction pour afficher ou masquer le bouton
+                    toggleCheckAllButton();
                 } else {
                     documentLists.innerHTML += "<p class='text-white'> Aucun document trouvé pour cette catégorie.</p>";
                 }
-    
+
             } catch (error) {
                 console.error('Error rendering document list:', error);
                 documentLists.innerHTML += "<p class='text-white'> Erreur lors du chargement des documents.</p>";
@@ -226,7 +257,6 @@
             }
         }
 
-    
         document.getElementById("pdfButton").addEventListener("click", function (event) {
             generatePDF();
         });
@@ -250,8 +280,7 @@
         }
 
         function showResetButton() {
-            resetButtonContainer.innerHTML = '<button type="button" class="btn btn-danger mt-3" id="resetButton"><i class="fa fa-refresh" aria-hidden="true"></i> Réinitialiser</button>';
-            document.getElementById('resetButton').addEventListener('click', resetForm);
+            resetButtonContainer.style.display = 'block'; // Afficher la div contenant les boutons
         }
 
         function resetForm() {

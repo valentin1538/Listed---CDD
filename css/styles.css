@@ -10864,3 +10864,43 @@ textarea.form-control-lg {
       display: none !important;
   }
 }
+
+.form-group {
+  margin-bottom: 20px;
+}
+.document-list {
+  text-align: left;
+  margin-top: 20px;
+}
+.document-list label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+.document-list label input {
+  margin-right: 10px; /* Espace entre la case à cocher et le texte */
+}
+
+#checkAllButton {
+  display: none; /* Cacher le bouton par défaut */
+}
+
+#resetButtonContainer {
+  display: none; /* Cacher la div par défaut */
+}
+
+.button-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Espacer les éléments */
+  margin-bottom: 20px; /* Espace sous les boutons */
+}
+.button-container .btn {
+  margin: 0 10px; /* Espacement entre les boutons */
+}
+.reset-button-container {
+  flex-grow: 1; /* Faire en sorte que le conteneur prenne tout l'espace restant */
+  display: flex;
+  justify-content: center; /* Centrer le bouton de réinitialisation */
+}
